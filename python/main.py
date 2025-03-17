@@ -18,6 +18,24 @@ from SplatsRenderer import SplatsRenderer
 from SplatsRendererLoop import SplatsRendererLoop
 from utils import create_projection_matrix, timer
 
+def get_view_proj_heatmap():
+    view = np.array(
+            glm.translate(
+                glm.rotate(
+                    glm.mat4(1.0), 0.5, glm.vec3(1, 0, 0) # rotation around X axis
+                ),
+                glm.vec3(0.0, 2.0, 3.0) # translation to get away from the center
+            )
+        ).T;
+    
+    proj = np.array([
+        [2., 0., 0., 0., ],
+        [0., -2., 0., 0., ],
+        [0., 0., 1.0010010010010009, 1.],
+        [0., 0., -0.20020020020020018, 0., ]
+    ])
+    
+    return view, proj
 
 def get_view_proj_using_glm(w, h, f):
     view_matrix = np.eye(4)  # Identity matrix for testing
@@ -74,38 +92,36 @@ def get_view_proj_matrix_antimatter():
 
 if __name__ == "__main__":
 
-    splatAxis = "../web/public/ds/axis.splat"
-    splatTrain = "../web/public/ds/train.splat" # https://huggingface.co/cakewalk/splat-data/resolve/main/train.splat
-
-
     w, h, f = 1000, 1000, 1000
 
     # choose which splat file to use
-    splat, fn = splatAxis, 'axis'
-    # splat, fn = splatTrain, 'train'
+    # splat, fn = "./gs_garden_mipnerf360_vr.splat", 'garden_gs'
+    splat, fn = "./garden_minisplat_transformed.splat", 'garden_mini'
 
     # choose which render to use
-    # renderer, fn_render, og = SplatsRendererLoop(splat), "loop", False
-    # renderer, fn_render, og = SplatsRenderer(splat), "vect", False
-    # renderer, fn_render, og = SplatsRendererGl(splat, w, h), "gl", True
-    # renderer, fn_render, og = SplatsRendererGlGeo(splat, w, h), "glgeo", True
-    # renderer, fn_render, og = SplatsRendererGlGeoConic(splat, w, h), "glgeoconic", True
-    # renderer, fn_render, og = SplatsRendererGlNoVertexSh(splat, w, h), "glnovertex", True
-    renderer, fn_render, og = SplatsRendererVkGeo(splat, w, h), "vkgeo", True
+    renderer, fn_render, og = SplatsRenderer(splat), "vect", False
 
-    output = f"test/{fn}_{fn_render}.png"
+    img_output = f"test/{fn}_{fn_render}.png"
+    heatmap_output = f"test/{fn}_{fn_render}_heatmap.png"
 
-    view, proj = get_view_proj_matrix_antimatter()
+    view, proj = get_view_proj_heatmap()
 
     # TODO keep only one version
     if not og:
         # Calculation renderers
         with timer("render"):
-            image = renderer.render(view.T, proj.T, w, h, f)
-        print(f"Rendering {renderer.__class__.__name__} in {output}")
-        Image.fromarray(image).save(output)
+            image, heatmap = renderer.render(view.T, proj.T, w, h, f)
+        print(f"Rendering {renderer.__class__.__name__} in {img_output}")
+        
+        Image.fromarray(image).save(img_output)
         plt.imshow(image)
         plt.axis('off')
+        plt.show()
+        
+        plt.figure()
+        plt.imshow(heatmap, vmin=0, vmax=500, cmap="plasma")
+        plt.colorbar()
+        plt.savefig(heatmap_output)
         plt.show()
 
     else:
@@ -120,9 +136,9 @@ if __name__ == "__main__":
 
             print(f"Rendering {renderer.__class__.__name__} in {output}")
             Image.fromarray(image).save(output)
-            plt.imshow(image)
-            plt.axis('off')
-            plt.show()
+            # plt.imshow(image)
+            # plt.axis('off')
+            # plt.show()
         else:
             renderer.loop(view, proj, w, h, f)
 

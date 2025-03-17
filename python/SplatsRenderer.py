@@ -92,6 +92,7 @@ class SplatsRenderer:
         center_px = ndc_to_px(center_ndc, uViewport).astype(int)
 
         img_rgba = np.zeros((h, w, 4), dtype=np.float32)  # Setup rendering buffers
+        heatmap = np.zeros((h, w), dtype=np.float32)
 
         indices = np.argsort(cam[:, 2])  # Sort by depth
         # indices = np.arange(0, len(depths))
@@ -145,7 +146,7 @@ class SplatsRenderer:
 
             B = np.zeros_like(A)
             B[mask] = np.exp(-A[mask]) * colors[idx][3]
-
+            
             # Calculate color and alpha
             src_rgba = np.dstack((colors[idx][:3] * B[:, :, np.newaxis], B))
             # src_rgba = np.dstack((np.array([1.0,0,0]) * np.ones_like(B[:, :, np.newaxis]),  np.ones_like(B)))
@@ -170,10 +171,13 @@ class SplatsRenderer:
 
             # Update the original arrays
             img_rgba[min_y_px:max_y_px, min_x_px:max_x_px] = region_rgba
+            heatmap[min_y_px:max_y_px, min_x_px:max_x_px] += np.where(mask > 0.0, 1.0, 0.0);
 
         img_rgba = np.flipud(img_rgba)  # upside down
         img_rgb = img_rgba[:, :, :3]
-        return (np.clip(img_rgb, 0, 1) * 255).astype(np.uint8)
+        heatmap = np.flipud(heatmap)
+               
+        return ((np.clip(img_rgb, 0, 1) * 255).astype(np.uint8), heatmap)
 
 
 def ndc_to_px(f, viewport):
